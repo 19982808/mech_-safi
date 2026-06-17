@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>MECH SAFI — Garage Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body,#root{height:100%;}
+body{background:#060A14;color:#E8F0FF;font-family:'Inter',sans-serif;}
+</style>
+</head>
+
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+
+/* ───────── SUPABASE INIT ───────── */
+const supabase = window.supabase.createClient(
+  "YOUR_SUPABASE_URL",
+  "YOUR_SUPABASE_ANON_KEY"
+);
+
+/* ───────── COLORS ───────── */
+const C={
+  bg:'#060A14',surf:'#0D1628',orange:'#FF6B1A',text:'#E8F0FF',muted:'rgba(232,240,255,0.6)'
+};
+
+/* ───────── APP ───────── */
+function App(){
+
+  const [user,setUser]=useState(null);
+  const [jobs,setJobs]=useState([]);
+  const [input,setInput]=useState("");
+  const [msgs,setMsgs]=useState([]);
+  const [loading,setLoading]=useState(false);
+
+/* ───────── AUTH CHECK ───────── */
+useEffect(()=>{
+  supabase.auth.getUser().then(({data})=>{
+    setUser(data.user);
+    if(data.user) loadJobs(data.user.id);
+  });
+},[]);
+
+/* ───────── LOAD JOBS ───────── */
+const loadJobs=async(uid)=>{
+  const {data}=await supabase
+    .from("jobs")
+    .select("*")
+    .eq("user_id",uid)
+    .order("created_at",{ascending:false});
+
+  setJobs(data||[]);
+};
+
+/* ───────── ADD JOB ───────── */
+const addJob=async()=>{
+  const job={
+    user_id:user.id,
+    plate:"KCA 123A",
+    car:"Toyota Hilux",
+    customer:"John",
+    phone:"0700000000",
+    problem:"Engine issue",
+    status:"waiting",
+    estKES:5000,
+    created_at:new Date()
+  };
+
+  await supabase.from("jobs").insert(job);
+  loadJobs(user.id);
+};
+
+/* ───────── AI CHAT (VIA VERCEL BACKEND) ───────── */
+const send=async()=>{
+  if(!input.trim())return;
+
+  const newMsgs=[...msgs,{role:"user",content:input}];
+  setMsgs(newMsgs);
+  setInput("");
+  setLoading(true);
+
+  const res=await fetch("/api/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      system:"You are a mechanic expert in Kenya.",
+      messages:newMsgs
+    })
+  });
+
+  const data=await res.json();
+
+  setMsgs(p=>[
+    ...p,
+    {role:"assistant",content:data.choices?.[0]?.message?.content || "Error"}
+  ]);
+
+  setLoading(false);
+};
+
+/* ───────── UI ───────── */
+if(!user){
+  return(
+    <div style={{padding:40}}>
+      <h2>Login Required</h2>
+      <button onClick={()=>supabase.auth.signInWithOAuth({provider:"google"})}>
+        Login with Google
+      </button>
+    </div>
+  );
+}
+
+return(
+<div style={{display:"flex",height:"100vh"}}>
+
+  {/* LEFT */}
+  <div style={{width:260,background:C.surf,padding:20}}>
+    <h3>MECH SAFI</h3>
+
+    <button onClick={addJob} style={{marginTop:20,padding:10}}>
+      + Add Job
+    </button>
+
+    <h4 style={{marginTop:20}}>Jobs</h4>
+
+    {jobs.map(j=>(
+      <div key={j.id} style={{marginTop:10,fontSize:12}}>
+        🔧 {j.car} - {j.status}
+      </div>
+    ))}
+  </div>
+
+  {/* RIGHT */}
+  <div style={{flex:1,padding:20}}>
+
+    <h3>AI Mechanic</h3>
+
+    <div style={{height:"70vh",overflowY:"auto",border:"1px solid #333",padding:10}}>
+      {msgs.map((m,i)=>(
+        <div key={i} style={{margin:10}}>
+          <b>{m.role}:</b> {m.content}
+        </div>
+      ))}
+      {loading && <p>Thinking...</p>}
+    </div>
+
+    <div style={{display:"flex",marginTop:10}}>
+      <input
+        value={input}
+        onChange={e=>setInput(e.target.value)}
+        style={{flex:1,padding:10}}
+      />
+      <button onClick={send} style={{padding:10}}>
+        Send
+      </button>
+    </div>
+
+  </div>
+
+</div>
+);
+
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+
+</body>
+</html>
