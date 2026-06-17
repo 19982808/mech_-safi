@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Register - MECH SAFI</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="styles.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+</head>
+
+<body>
+
+<div style="height:100vh;display:flex;justify-content:center;align-items:center;flex-direction:column;gap:10px;">
+
+  <h2>🧰 Create Garage Account</h2>
+
+  <input id="name" placeholder="Owner Name" style="padding:10px;width:250px"/>
+  <input id="garage" placeholder="Garage Name" style="padding:10px;width:250px"/>
+  <input id="location" placeholder="Location" style="padding:10px;width:250px"/>
+  <input id="speciality" placeholder="Speciality (Toyota, BMW...)" style="padding:10px;width:250px"/>
+
+  <input id="email" placeholder="Email" style="padding:10px;width:250px"/>
+  <input id="password" type="password" placeholder="Password" style="padding:10px;width:250px"/>
+
+  <button onclick="register()" style="background:#FF6B1A;color:white;border:0;padding:10px 25px;border-radius:8px">
+    Register
+  </button>
+
+  <a href="login.html" style="color:#FF6B1A;font-size:13px">Already have account?</a>
+
+</div>
+
+<script>
+async function register(){
+
+  const email=document.getElementById("email").value;
+  const password=document.getElementById("password").value;
+
+  const name=document.getElementById("name").value;
+  const garage=document.getElementById("garage").value;
+  const location=document.getElementById("location").value;
+  const speciality=document.getElementById("speciality").value;
+
+  const {data,error}=await supabaseClient.auth.signUp({
+    email,
+    password
+  });
+
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  await supabaseClient.from("profiles").insert({
+    id:data.user.id,
+    owner_name:name,
+    garage_name:garage,
+    location,
+    speciality
+  });
+
+  alert("Account created!");
+  location.href="login.html";
+}
+</script>
+
+</body>
+</html>
